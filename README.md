@@ -5,11 +5,11 @@ Minimal repo to smoke-test **Ondevtra CI workflow debugger**
 
 ## What this does
 
-1. GitHub Actions creates fake ORFS-shaped output dirs: `logs/`, `reports/`, `results/`.
-2. `actions/upload-artifact` attaches them to the workflow run.
-3. In the dashboard: connect `guris12/pdflowtestPDdebug` → pick run → artifact → ask a question.
+1. GitHub Actions creates an **ORFS-shaped** tree under `logs/sky130hd/gcd/base/`, `reports/…`, `results/…` (stage logs `1_`–`6_`, STA report with **WNS −0.12 ns**).
+2. `actions/upload-artifact` uploads artifact **`orfs-flow-outputs`**.
+3. Dashboard: https://vlsi.ondevtra.com/dashboard/debug → connect this repo → run → ask.
 
-No real OpenROAD run required for the first test.
+No container required for the smoke test.
 
 ## Run the workflow
 

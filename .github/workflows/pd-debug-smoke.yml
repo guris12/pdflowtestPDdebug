@@ -1,5 +1,5 @@
 # Smoke test for vlsi.ondevtra.com/dashboard/debug
-# Creates ORFS-shaped logs/reports/results and uploads one GitHub Actions artifact.
+# Richer dummy ORFS tree: logs/sky130hd/gcd/base/{1..6}_*.log + STA timing report.
 
 name: PD debug smoke (dummy flow outputs)
 
@@ -17,25 +17,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate dummy ORFS outputs
+      - name: Generate richer dummy ORFS outputs
         run: |
           set -euo pipefail
-          mkdir -p logs reports results
-          cat > logs/synth.log <<'EOF'
-          [INFO] yosys synthesis completed
-          [INFO] mapped 211 cells for design gcd
+          PDK=sky130hd
+          SLUG=gcd
+          LOG_BASE="logs/${PDK}/${SLUG}/base"
+          RPT_BASE="reports/${PDK}/${SLUG}/base"
+          RES_BASE="results/${PDK}/${SLUG}/base"
+          mkdir -p "$LOG_BASE" "$RPT_BASE" "$RES_BASE"
+
+          for n in 1 2 3 4 5; do
+            echo "[INFO] stage ${n} completed OK" > "${LOG_BASE}/${n}_stage.log"
+            touch "${RES_BASE}/${n}_stage.odb"
+          done
+          echo "[INFO] yosys mapped 211 cells" > "${LOG_BASE}/1_synth.log"
+          touch "${RES_BASE}/1_synth.odb"
+
+          cat > "${LOG_BASE}/6_sta.log" <<'EOF'
+          [INFO] OpenSTA finished
+          [INFO] Setup WNS -0.12 ns TNS -1.40 ns
+          [INFO] Hold WNS 0.05 ns
           EOF
-          cat > reports/timing.rpt <<'EOF'
-          WNS: -0.12 ns
-          TNS: -1.4 ns
-          Violated paths: 3
+
+          cat > "${RPT_BASE}/6_sta.rpt" <<'EOF'
+          Design: gcd
+          Corner: default
+          Setup WNS: -0.12 ns
+          Setup TNS: -1.40 ns
+          Hold WNS: 0.05 ns
+          Violated paths (setup): 3
+            path1: slack -0.12 ns  (reg_a -> reg_b)
+            path2: slack -0.08 ns
+            path3: slack -0.05 ns
           EOF
-          cat > results/sta_summary.txt <<'EOF'
-          stage=synth status=completed
-          stage=place status=not_run
-          EOF
+
+          touch "${RES_BASE}/6_sta.odb"
+
           echo "Tree:"
-          find logs reports results -type f
+          find logs reports results -type f | sort
 
       - name: Upload flow artifact for dashboard debugger
         uses: actions/upload-artifact@v4
@@ -49,5 +69,6 @@ jobs:
 
       - name: Summary
         run: |
-          echo "Artifact name: orfs-flow-outputs"
-          echo "Connect this repo at https://vlsi.ondevtra.com/dashboard/debug"
+          echo "Artifact: orfs-flow-outputs"
+          echo "Dashboard: https://vlsi.ondevtra.com/dashboard/debug"
+          echo "Connect: guris12/pdflowtestPDdebug"
