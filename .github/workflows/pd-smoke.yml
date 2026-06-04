@@ -1,0 +1,367 @@
+# Smoke test for vlsi.ondevtra.com/dashboard/debug
+# Creates realistic ORFS-shaped logs/reports/results matching a gcd/sky130hd flow run.
+
+name: PD debug smoke (realistic ORFS outputs)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  flow-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate realistic ORFS flow outputs
+        run: |
+          set -euo pipefail
+          mkdir -p logs reports results designs/sky130hd/gcd
+
+          # ── logs/ ──────────────────────────────────────────────────────────
+          cat > logs/1_1_yosys.log <<'LOGEOF'
+          1. Executing Verilog-2005 frontend: designs/sky130hd/gcd/gcd.v
+          Parsing Verilog input from `designs/sky130hd/gcd/gcd.v' to AST representation.
+          Generating RTLIL representation for module `\gcd'.
+          Successfully finished Verilog frontend.
+
+          2. Executing SYNTH pass.
+          2.1. Executing HIERARCHY pass (managing design hierarchy).
+          2.2. Executing PROC pass (convert processes to netlists).
+          2.3. Executing OPT_EXPR pass (perform const folding).
+          2.4. Executing TECHMAP pass (map to technology library).
+
+          3. Printing statistics.
+             Number of wires:                308
+             Number of wire bits:            832
+             Number of public wires:          41
+             Number of public wire bits:     301
+             Number of memories:               0
+             Number of memory bits:            0
+             Number of processes:              0
+             Number of cells:                211
+               sky130_fd_sc_hd__a21oi_1       12
+               sky130_fd_sc_hd__and2_1        18
+               sky130_fd_sc_hd__buf_1         14
+               sky130_fd_sc_hd__dfxtp_1       32
+               sky130_fd_sc_hd__inv_1         22
+               sky130_fd_sc_hd__mux2_1        30
+               sky130_fd_sc_hd__nand2_1       28
+               sky130_fd_sc_hd__nor2_1        19
+               sky130_fd_sc_hd__o21ai_1       16
+               sky130_fd_sc_hd__xnor2_1       10
+               sky130_fd_sc_hd__xor2_1        10
+
+          [INFO] Synthesis complete for design gcd
+          [INFO] Total cell area: 4201.632 um^2
+          [INFO] Design utilization target: 50%
+          LOGEOF
+
+          cat > logs/2_1_floorplan.log <<'LOGEOF'
+          [INFO ODB-0127] Reading DEF file: results/2_floorplan.def
+          [INFO IFP-0001] Added 40 rows of height 2.72 microns.
+          [INFO IFP-0002] Core area: (5.52 5.44) (95.68 114.24)
+          [INFO IFP-0003] Die area:  (0.0  0.0)  (100.0 120.0)
+
+          [INFO PDN-0001] Generating PDN for design gcd
+          [INFO PDN-0016] Power grid: VDD
+          [INFO PDN-0017] Power grid: VSS
+          [INFO PDN-0016] Generating stripes for layer met4:
+            Width 1.6 pitch 27.14 offset 13.57
+          [INFO PDN-0016] Generating stripes for layer met5:
+            Width 1.6 pitch 27.14 offset 13.57
+          [INFO PDN-0036] Inserting standard cell filler cells.
+          [INFO PDN-0037] Added 180 filler cells.
+          LOGEOF
+
+          cat > logs/3_1_place_gp.log <<'LOGEOF'
+          [INFO GPL-0002] DBU: 1000
+          [INFO GPL-0003] SiteSize: (0.46 2.72)
+          [INFO GPL-0004] CoreAreaLxLy: (5520 5440)
+          [INFO GPL-0005] CoreAreaUxUy: (95680 114240)
+          [INFO GPL-0006] NumInstances: 211
+          [INFO GPL-0007] NumPlaceInstances: 179
+          [INFO GPL-0008] NumFixedInstances: 32
+          [INFO GPL-0009] NumDummyInstances: 0
+          [INFO GPL-0010] NumNets: 236
+          [INFO GPL-0011] NumPins: 632
+
+          [NesterovSolve] Iter: 1    overflow: 0.92  HPWL: 123405
+          [NesterovSolve] Iter: 50   overflow: 0.41  HPWL: 98712
+          [NesterovSolve] Iter: 100  overflow: 0.18  HPWL: 87234
+          [NesterovSolve] Iter: 150  overflow: 0.07  HPWL: 84102
+          [NesterovSolve] Iter: 186  overflow: 0.03  HPWL: 83210
+          [INFO GPL-0075] Placement converged at iteration 186.
+
+          [INFO DPL-0001] Detailed placement starting.
+          [INFO DPL-0020] Placed 179 instances, 0 with displacement.
+          [INFO DPL-0032] Detailed placement complete. HPWL improved 2.1%.
+          LOGEOF
+
+          cat > logs/4_1_cts.log <<'LOGEOF'
+          [INFO CTS-0003] Number of sinks: 32
+          [INFO CTS-0004] Clock net: clk
+          [INFO CTS-0007] Number of CTS buffers: 8
+          [INFO CTS-0008] CTS buffer types: sky130_fd_sc_hd__clkbuf_4
+          [INFO CTS-0010] Clock tree depth: 3
+
+          [INFO CTS-0016] Pre-CTS timing:
+            WNS: -0.42 ns  TNS: -2.14 ns
+          [INFO CTS-0017] Post-CTS timing:
+            WNS: -0.31 ns  TNS: -1.58 ns
+          [WARNING CTS-0099] Skew target 0.1ns not met. Actual skew: 0.18ns
+          [INFO CTS-0098] Clock tree insertion delay: 0.62 ns
+          LOGEOF
+
+          cat > logs/5_1_route.log <<'LOGEOF'
+          [INFO GRT-0001] Running global routing.
+          [INFO GRT-0017] Design has 236 nets.
+          [INFO GRT-0020] Running routing with 5 layers: li1 met1 met2 met3 met4
+
+          [INFO GRT-0101] Running congestion iterations:
+            Iteration 1: 12 overflow, 2.1% congested
+            Iteration 2:  4 overflow, 0.8% congested
+            Iteration 3:  0 overflow, 0.0% congested
+          [INFO GRT-0018] Global routing complete. No overflow.
+
+          [INFO DRT-0001] Running detailed routing.
+          [INFO DRT-0002] Detailed routing uses 5 metal layers.
+          [INFO DRT-0267] cpu time = 00:00:12, elapsed time = 00:00:04, peak mem = 312 MB
+
+          [INFO DRT-0199] Number of DRC violations:
+            met1 Short:     0
+            met1 Spacing:   2
+            met2 Spacing:   1
+            via1 Enclosure: 0
+            Total:          3
+          [WARNING] 3 DRC violations remain after detailed routing.
+          LOGEOF
+
+          # ── reports/ ───────────────────────────────────────────────────────
+          cat > reports/synth_stat.rpt <<'RPTEOF'
+          === gcd ===
+
+             Number of wires:                308
+             Number of wire bits:            832
+             Number of cells:                211
+
+             Chip area for module '\gcd': 4201.632000
+
+             Cell type distribution:
+               sky130_fd_sc_hd__dfxtp_1       32 (15.2%)
+               sky130_fd_sc_hd__mux2_1        30 (14.2%)
+               sky130_fd_sc_hd__nand2_1       28 (13.3%)
+               sky130_fd_sc_hd__inv_1         22 (10.4%)
+               sky130_fd_sc_hd__nor2_1        19 (9.0%)
+               sky130_fd_sc_hd__and2_1        18 (8.5%)
+               sky130_fd_sc_hd__o21ai_1       16 (7.6%)
+               sky130_fd_sc_hd__buf_1         14 (6.6%)
+               sky130_fd_sc_hd__a21oi_1       12 (5.7%)
+               sky130_fd_sc_hd__xnor2_1       10 (4.7%)
+               sky130_fd_sc_hd__xor2_1        10 (4.7%)
+          RPTEOF
+
+          cat > reports/final_timing.rpt <<'RPTEOF'
+          =========================================================================
+           report_checks -path_delay max (Setup)
+          -------------------------------------------------------------------------
+          Startpoint: req_val (input port clocked by clk)
+          Endpoint: _456_ (rising edge-triggered flip-flop clocked by clk)
+          Path Group: clk
+          Path Type: max
+
+            Delay    Time   Description
+          ---------------------------------------------------------
+             0.000   0.000   clock clk (rise edge)
+             0.000   0.000   clock network delay (ideal)
+             0.200   0.200   input external delay
+             0.000   0.200 ^ req_val (in)
+             0.084   0.284 ^ _201_/Y (sky130_fd_sc_hd__buf_1)
+             0.112   0.396 v _211_/Y (sky130_fd_sc_hd__nand2_1)
+             0.098   0.494 ^ _220_/Y (sky130_fd_sc_hd__a21oi_1)
+             0.146   0.640 v _231_/Y (sky130_fd_sc_hd__mux2_1)
+             0.123   0.763 ^ _242_/Y (sky130_fd_sc_hd__xor2_1)
+             0.189   0.952 v _253_/Y (sky130_fd_sc_hd__o21ai_1)
+             0.115   1.067 ^ _264_/Y (sky130_fd_sc_hd__nand2_1)
+             0.087   1.154 v _275_/Y (sky130_fd_sc_hd__inv_1)
+             0.094   1.248 ^ _286_/Y (sky130_fd_sc_hd__nor2_1)
+             0.000   1.248 ^ _456_/D (sky130_fd_sc_hd__dfxtp_1)
+                     1.248   data arrival time
+
+             2.000   2.000   clock clk (rise edge)
+             0.000   2.000   clock network delay (ideal)
+            -0.100   1.900   clock uncertainty
+             0.000   1.900   clock reconvergence pessimism
+            -0.050   1.850   library setup time
+                     1.850   data required time
+          ---------------------------------------------------------
+                     1.850   data required time
+                    -1.248   data arrival time
+          ---------------------------------------------------------
+                     0.602   slack (MET)
+
+          =========================================================================
+           report_checks -path_delay max (Setup) — WORST PATH
+          -------------------------------------------------------------------------
+          Startpoint: _123_ (rising edge-triggered flip-flop clocked by clk)
+          Endpoint: _389_ (rising edge-triggered flip-flop clocked by clk)
+          Path Group: clk
+          Path Type: max
+
+            Delay    Time   Description
+          ---------------------------------------------------------
+             0.000   0.000   clock clk (rise edge)
+             0.620   0.620   clock network delay (propagated)
+             0.000   0.620 ^ _123_/CLK (sky130_fd_sc_hd__dfxtp_1)
+             0.312   0.932 ^ _123_/Q (sky130_fd_sc_hd__dfxtp_1)
+             0.156   1.088 v _134_/Y (sky130_fd_sc_hd__nand2_1)
+             0.142   1.230 ^ _145_/Y (sky130_fd_sc_hd__a21oi_1)
+             0.198   1.428 v _156_/Y (sky130_fd_sc_hd__mux2_1)
+             0.167   1.595 ^ _167_/Y (sky130_fd_sc_hd__xnor2_1)
+             0.213   1.808 v _178_/Y (sky130_fd_sc_hd__o21ai_1)
+             0.145   1.953 ^ _189_/Y (sky130_fd_sc_hd__nand2_1)
+             0.098   2.051 v _200_/Y (sky130_fd_sc_hd__inv_1)
+             0.112   2.163 ^ _389_/D (sky130_fd_sc_hd__dfxtp_1)
+                     2.163   data arrival time
+
+             2.000   2.000   clock clk (rise edge)
+             0.620   2.620   clock network delay (propagated)
+            -0.100   2.520   clock uncertainty
+             0.000   2.520   clock reconvergence pessimism
+            -0.050   2.470   library setup time
+                     2.470   data required time
+          ---------------------------------------------------------
+                     2.470   data required time
+                    -2.163   data arrival time
+          ---------------------------------------------------------
+                     0.307   slack (MET)
+
+          =========================================================================
+          WNS (worst negative slack): 0.000 ns  (all paths met)
+          TNS (total negative slack):  0.000 ns
+          Number of violating paths: 0
+          RPTEOF
+
+          cat > reports/final_drc.rpt <<'RPTEOF'
+          =========================================================================
+           DRC Report for design gcd (sky130hd)
+           Generated by OpenROAD detailed_route
+          =========================================================================
+
+          Violation 1:
+            Type: Metal1 Minimum Spacing
+            Layer: met1
+            Srcs: net:_net_42 net:_net_87
+            BBox: (23.460 45.120) (23.690 45.350)
+            Required: 0.140 um  Actual: 0.112 um
+
+          Violation 2:
+            Type: Metal1 Minimum Spacing
+            Layer: met1
+            Srcs: net:clk net:_net_12
+            BBox: (67.230 78.880) (67.460 79.110)
+            Required: 0.140 um  Actual: 0.098 um
+
+          Violation 3:
+            Type: Metal2 Minimum Spacing
+            Layer: met2
+            Srcs: net:_net_103 net:_net_156
+            BBox: (41.920 22.440) (42.150 22.670)
+            Required: 0.140 um  Actual: 0.121 um
+
+          =========================================================================
+          Total DRC violations: 3
+            met1 spacing: 2
+            met2 spacing: 1
+          =========================================================================
+          RPTEOF
+
+          cat > reports/power.rpt <<'RPTEOF'
+          =========================================================================
+           Power Report for design gcd
+          =========================================================================
+          Group             Internal   Switching    Leakage      Total
+                              Power      Power      Power       Power    (%)
+          ----------------------------------------------------------------
+          Sequential         0.0824     0.0142     0.00032     0.0969   (42.1%)
+          Combinational      0.0712     0.0398     0.00089     0.1119   (48.6%)
+          Macro              0.0000     0.0000     0.00000     0.0000   (0.0%)
+          Pad                0.0000     0.0000     0.00000     0.0000   (0.0%)
+          ----------------------------------------------------------------
+          Total              0.1536     0.0540     0.00121     0.2088   (mW)
+          ================================================================
+          RPTEOF
+
+          # ── results/ ───────────────────────────────────────────────────────
+          cat > results/metrics.json <<'REOF'
+          {
+            "design": "gcd",
+            "platform": "sky130hd",
+            "stages": {
+              "synth": {"status": "done", "cells": 211, "area_um2": 4201.632},
+              "floorplan": {"status": "done", "die_area_um2": 12000.0, "utilization": 0.35},
+              "place": {"status": "done", "hpwl": 83210, "overflow": 0.03},
+              "cts": {"status": "done", "buffers": 8, "depth": 3, "skew_ns": 0.18},
+              "route": {"status": "done", "drc_count": 3, "overflow": 0}
+            },
+            "timing": {
+              "wns_ns": 0.307,
+              "tns_ns": 0.0,
+              "violating_paths": 0
+            },
+            "power_mw": 0.2088
+          }
+          REOF
+
+          # ── designs/ (config) ──────────────────────────────────────────────
+          cat > designs/sky130hd/gcd/config.mk <<'CFGEOF'
+          export DESIGN_NAME = gcd
+          export PLATFORM    = sky130hd
+          export VERILOG_FILES = ./designs/src/gcd/gcd.v
+          export SDC_FILE     = ./designs/sky130hd/gcd/constraint.sdc
+          export CORE_UTILIZATION = 50
+          export CORE_ASPECT_RATIO = 1
+          export CORE_MARGIN = 2
+          export PLACE_DENSITY = 0.65
+          CFGEOF
+
+          cat > designs/sky130hd/gcd/constraint.sdc <<'SDCEOF'
+          create_clock [get_ports clk] -name clk -period 2.0
+          set_input_delay  0.2 -clock clk [all_inputs]
+          set_output_delay 0.2 -clock clk [all_outputs]
+          set_load 0.01 [all_outputs]
+          set_driving_cell -lib_cell sky130_fd_sc_hd__buf_1 [all_inputs]
+          SDCEOF
+
+          echo "Generated realistic ORFS flow tree:"
+          find logs reports results designs -type f | sort
+
+      - name: Upload flow artifact for dashboard debugger
+        uses: actions/upload-artifact@v4
+        with:
+          name: orfs-flow-outputs
+          path: |
+            logs
+            reports
+            results
+            designs
+          retention-days: 7
+
+      - name: Summary
+        run: |
+          echo "### Flow artifact uploaded" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Design | gcd |" >> $GITHUB_STEP_SUMMARY
+          echo "| PDK | sky130hd |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cells | 211 |" >> $GITHUB_STEP_SUMMARY
+          echo "| WNS | 0.307 ns (MET) |" >> $GITHUB_STEP_SUMMARY
+          echo "| DRC | 3 violations |" >> $GITHUB_STEP_SUMMARY
+          echo "| Power | 0.2088 mW |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Test at: https://vlsi.ondevtra.com/dashboard/debug" >> $GITHUB_STEP_SUMMARY
