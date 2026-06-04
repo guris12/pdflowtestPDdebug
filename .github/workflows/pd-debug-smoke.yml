@@ -1,0 +1,53 @@
+# Smoke test for vlsi.ondevtra.com/dashboard/debug
+# Creates ORFS-shaped logs/reports/results and uploads one GitHub Actions artifact.
+
+name: PD debug smoke (dummy flow outputs)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  dummy-flow-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate dummy ORFS outputs
+        run: |
+          set -euo pipefail
+          mkdir -p logs reports results
+          cat > logs/synth.log <<'EOF'
+          [INFO] yosys synthesis completed
+          [INFO] mapped 211 cells for design gcd
+          EOF
+          cat > reports/timing.rpt <<'EOF'
+          WNS: -0.12 ns
+          TNS: -1.4 ns
+          Violated paths: 3
+          EOF
+          cat > results/sta_summary.txt <<'EOF'
+          stage=synth status=completed
+          stage=place status=not_run
+          EOF
+          echo "Tree:"
+          find logs reports results -type f
+
+      - name: Upload flow artifact for dashboard debugger
+        uses: actions/upload-artifact@v4
+        with:
+          name: orfs-flow-outputs
+          path: |
+            logs
+            reports
+            results
+          retention-days: 7
+
+      - name: Summary
+        run: |
+          echo "Artifact name: orfs-flow-outputs"
+          echo "Connect this repo at https://vlsi.ondevtra.com/dashboard/debug"
